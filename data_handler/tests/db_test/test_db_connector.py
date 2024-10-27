@@ -60,9 +60,13 @@ def sample_hashstack_loan_state(mock_db_connector):
     """
     return HashtackCollateralDebt(
         user_id="test_user",
-        loan_id=1,
-        collateral=100.0,
-        debt=50.0,
+        loan_id="test_loan",
+        collateral={"ETH": 100.0},
+        debt={"USDC": 1000.0},
+        original_collateral={"ETH": 120.0},
+        borrowed_collateral={"ETH": 20.0},
+        debt_category="test_category",
+        version=1
     )
 
 
