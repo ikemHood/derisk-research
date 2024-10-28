@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock
 from requests.exceptions import HTTPError
-from handler_tools.api_connector import DeRiskAPIConnector
+from data_handler.handler_tools.api_connector import DeRiskAPIConnector
 
 class TestDeRiskAPIConnector(unittest.TestCase):
     DERISK_API_URL = "https://api.derisk.io"
