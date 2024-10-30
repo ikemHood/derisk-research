@@ -86,4 +86,24 @@ class ZklendTransformer:
         
         self.db_connector.create_liquidation_event(db_model)
 
+if __name__ == "__main__":
+    """
+    This is the init function for when ZklendTransformer class is called directly.
+    """
+    transformer = ZklendTransformer()
+    
+    test_address = "0x04c0a5193d58f74fbace4b74dcf65481e734ed1714121bdc571da345540efa05"
+    min_block = 630000
+    max_block = 631000
+    
+    try:
+        transformer.fetch_and_transform_events(
+            from_address=test_address,
+            min_block=min_block,
+            max_block=max_block
+        )
+        print("Successfully processed events")
+    except Exception as e:
+        print(f"Error processing events: {str(e)}")
+
 
