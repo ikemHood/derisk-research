@@ -18,15 +18,15 @@ from data_handler.db.models.zklend_events import (
 )
 from data_handler.db.crud import ZkLendEventDBConnector
 
-EVENT_MAPPING: Dict[str, Tuple[Callable, Type[BaseModel], Type[Base]]] = {
-    "AccumulatorsSync": (
+EVENT_MAPPING: Dict[str, Tuple[Callable, str, Type[Base]]] = {
+    "zklend::market::Market::AccumulatorsSync": (
         ZkLendDataParser.parse_accumulators_sync_event,
-        AccumulatorsSyncSerializer,
+        "create_accumulator_event",
         AccumulatorsSyncModel
     ),
-    "Liquidation": (
+    "zklend::market::Market::Liquidation": (
         ZkLendDataParser.parse_liquidation_event,
-        LiquidationSerializer,
+        "create_liquidation_event",
         LiquidationModel
     ),
 }
@@ -41,12 +41,37 @@ class ZklendTransformer:
     def __init__(self):
         self.api_connector = DeRiskAPIConnector()
         self.db_connector = ZkLendEventDBConnector()
+    
+    def fetch_and_transform_events(self, from_address: str, min_block: int, max_block: int) -> None:
+        """
+        Fetch events from the DeRisk API and transform them into database models.
+        """
+        # Fetch events using the API connector
+        response = self.api_connector.get_data(
+            from_address=from_address,
+            min_block_number=min_block,
+            max_block_number=max_block
+        )
+
+        if "error" in response:
+            raise ValueError(f"Error fetching events: {response['error']}")
+
+        # Process each event based on its type
+        for event in response:
+            event_type = event.get("key_name")
+            if event_type in self.EVENT_MAPPING:
+                parser_func, method_name, model_class = self.EVENT_MAPPING[event_type]
+                parsed_data = parser_func(event["data"])
+                db_model = model_class(**parsed_data.model_dump())
+                self.db_connector[method_name](db_model)
+            else:
+                raise ValueError(f"Event type {event_type} not supported, yet...")
 
     def save_accumulators_sync_event(self, event: Dict[str, Any]) -> None:
         """
         Save an accumulators sync event to the database.
         """
-        parser_func, serializer_class, model_class = EVENT_MAPPING["AccumulatorsSync"]
+        parser_func, _, model_class = self.EVENT_MAPPING["zklend::market::Market::AccumulatorsSync"]
         parsed_data = parser_func(event)
         db_model = model_class(**parsed_data.model_dump())
         self.db_connector.create_accumulator_event(db_model)
@@ -55,7 +80,7 @@ class ZklendTransformer:
         """
         Save a liquidation event to the database.
         """
-        parser_func, serializer_class, model_class = EVENT_MAPPING["Liquidation"]
+        parser_func, _, model_class = self.EVENT_MAPPING["zklend::market::Market::Liquidation"]
         parsed_data = parser_func(event)
         db_model = model_class(**parsed_data.model_dump())
         
