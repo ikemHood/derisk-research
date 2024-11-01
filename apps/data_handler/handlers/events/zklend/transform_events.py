@@ -12,6 +12,11 @@ from data_handler.handler_tools.data_parser.zklend import ZklendDataParser
 from data_handler.db.models.zklend_events import (
     AccumulatorsSyncEventModel,
     LiquidationEventModel,
+    RepaymentEventModel,
+    BorrowingEventModel,
+    DepositEventModel,
+    WithdrawalEventModel,
+    CollateralEnabledDisabledEventModel
 )
 from data_handler.db.crud import ZkLendEventDBConnector
 from data_handler.handler_tools.constants import ProtocolAddresses
@@ -24,23 +29,83 @@ logger = logging.getLogger(__name__)
 EVENT_MAPPING: Dict[str, Tuple[Callable, str, Type[Base]]] = {
     "AccumulatorsSync": (
         ZklendDataParser.parse_accumulators_sync_event,
-        "create_accumulator_event",
+        "save_accumulators_sync_event",
+        AccumulatorsSyncEventModel
+    ),
+    "zklend::market::Market::AccumulatorsSync": (
+        ZklendDataParser.parse_accumulators_sync_event,
+        "save_accumulators_sync_event",
         AccumulatorsSyncEventModel
     ),
     "Liquidation": (
         ZklendDataParser.parse_liquidation_event,
-        "create_liquidation_event",
+        "save_liquidation_event",
         LiquidationEventModel
-    ),
-    "zklend::market::Market::AccumulatorsSync": (
-        ZklendDataParser.parse_accumulators_sync_event,
-        "create_accumulator_event",
-        AccumulatorsSyncEventModel
     ),
     "zklend::market::Market::Liquidation": (
         ZklendDataParser.parse_liquidation_event,
-        "create_liquidation_event",
+        "save_liquidation_event",
         LiquidationEventModel
+    ),
+    "Repayment": (
+        ZklendDataParser.parse_repayment_event,
+        "create_repayment_event",
+        RepaymentEventModel
+    ),
+    "zklend::market::Market::Repayment": (
+        ZklendDataParser.parse_repayment_event,
+        "create_repayment_event",
+        RepaymentEventModel
+    ),
+    "Borrowing": (
+        ZklendDataParser.parse_borrowing_event,
+        "create_borrowing_event",
+        BorrowingEventModel
+    ),
+    "zklend::market::Market::Borrowing": (
+        ZklendDataParser.parse_borrowing_event,
+        "create_borrowing_event",
+        BorrowingEventModel
+    ),
+    "Deposit": (
+        ZklendDataParser.parse_deposit_event,
+        "create_deposit_event",
+        DepositEventModel
+    ),
+    "zklend::market::Market::Deposit": (
+        ZklendDataParser.parse_deposit_event,
+        "create_deposit_event",
+        DepositEventModel
+    ),
+    "Withdrawal": (
+        ZklendDataParser.parse_withdrawal_event,
+        "create_withdrawal_event",
+        WithdrawalEventModel
+    ),
+    "zklend::market::Market::Withdrawal": (
+        ZklendDataParser.parse_withdrawal_event,
+        "create_withdrawal_event",
+        WithdrawalEventModel
+    ),
+    "CollateralEnabled": (
+        ZklendDataParser.parse_collateral_enabled_disabled_event,
+        "collateral_enabled_disabled_event",
+        CollateralEnabledDisabledEventModel
+    ),
+    "zklend::market::Market::CollateralEnabled": (
+        ZklendDataParser.parse_collateral_enabled_disabled_event,
+        "collateral_enabled_disabled_event",
+        CollateralEnabledDisabledEventModel
+    ),
+    "CollateralDisabled": (
+        ZklendDataParser.parse_collateral_enabled_disabled_event,
+        "collateral_enabled_disabled_event",
+        CollateralEnabledDisabledEventModel
+    ),
+    "zklend::market::Market::CollateralDisabled": (
+        ZklendDataParser.parse_collateral_enabled_disabled_event,
+        "collateral_enabled_disabled_event",
+        CollateralEnabledDisabledEventModel
     ),
 }
 
@@ -50,7 +115,7 @@ class ZklendTransformer:
     A class that is used to transform Zklend events into database models.
     """
 
-    EVENT_MAPPING: Dict[str, Tuple[Callable, Type[BaseModel], Type[Base]]] = EVENT_MAPPING
+    EVENT_MAPPING: Dict[str, Tuple[Callable, str, Type[Base]]] = EVENT_MAPPING
     PROTOCOL_ADDRESSES: str = ProtocolAddresses.ZKLEND_MARKET_ADDRESSES
     PROTOCOL_TYPE: ProtocolIDs = ProtocolIDs.ZKLEND
     PAGINATION_SIZE: int = 1000
@@ -82,31 +147,46 @@ class ZklendTransformer:
         for event in response:
             event_type = event.get("key_name")
             if event_type in self.EVENT_MAPPING:
-                parser_func, method_name, model_class = self.EVENT_MAPPING[event_type]
+                parser_func, save_to_db_method_name, model_class = self.EVENT_MAPPING[event_type]
                 parsed_data = parser_func(event["data"])
                 db_model = model_class(**parsed_data.model_dump())
-                self.db_connector[method_name](db_model)
+                getattr(self, save_to_db_method_name)(db_model)
             else:
                 logger.info(f"Event type {event_type} not supported, yet...")
 
-    def save_accumulators_sync_event(self, event: Dict[str, Any]) -> None:
+    def save_accumulators_sync_event(self, event_model: AccumulatorsSyncEventModel) -> None:
         """
         Save an accumulators sync event to the database.
         """
-        parser_func, _, model_class = self.EVENT_MAPPING["zklend::market::Market::AccumulatorsSync"]
-        parsed_data = parser_func(event)
-        db_model = model_class(**parsed_data.model_dump())
-        self.db_connector.create_accumulator_event(db_model)
+        self.db_connector.create_accumulator_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "token": event_model.token,
+                "lending_accumulator": event_model.lending_accumulator,
+                "debt_accumulator": event_model.debt_accumulator
+            }
+        )
 
-    def save_liquidation_event(self, event: Dict[str, Any]) -> None:
+    def save_liquidation_event(self, event_model: LiquidationEventModel) -> None:
         """
         Save a liquidation event to the database.
         """
-        parser_func, _, model_class = self.EVENT_MAPPING["zklend::market::Market::Liquidation"]
-        parsed_data = parser_func(event)
-        db_model = model_class(**parsed_data.model_dump())
-        
-        self.db_connector.create_liquidation_event(db_model)
+        self.db_connector.create_liquidation_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "liquidator": event_model.liquidator,
+                "user": event_model.user,
+                "debt_token": event_model.debt_token,
+                "debt_raw_amount": event_model.debt_raw_amount,
+                "debt_face_amount": event_model.debt_face_amount,
+                "collateral_token": event_model.collateral_token,
+                "collateral_amount": event_model.collateral_amount
+            }
+        )
 
     def run(self) -> None:
         """
