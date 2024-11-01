@@ -49,62 +49,62 @@ EVENT_MAPPING: Dict[str, Tuple[Callable, str, Type[Base]]] = {
     ),
     "Repayment": (
         ZklendDataParser.parse_repayment_event,
-        "create_repayment_event",
+        "save_repayment_event",
         RepaymentEventModel
     ),
     "zklend::market::Market::Repayment": (
         ZklendDataParser.parse_repayment_event,
-        "create_repayment_event",
+        "save_repayment_event",
         RepaymentEventModel
     ),
     "Borrowing": (
         ZklendDataParser.parse_borrowing_event,
-        "create_borrowing_event",
+        "save_borrowing_event",
         BorrowingEventModel
     ),
     "zklend::market::Market::Borrowing": (
         ZklendDataParser.parse_borrowing_event,
-        "create_borrowing_event",
+        "save_borrowing_event",
         BorrowingEventModel
     ),
     "Deposit": (
         ZklendDataParser.parse_deposit_event,
-        "create_deposit_event",
+        "save_deposit_event",
         DepositEventModel
     ),
     "zklend::market::Market::Deposit": (
         ZklendDataParser.parse_deposit_event,
-        "create_deposit_event",
+        "save_deposit_event",
         DepositEventModel
     ),
     "Withdrawal": (
         ZklendDataParser.parse_withdrawal_event,
-        "create_withdrawal_event",
+        "save_withdrawal_event",
         WithdrawalEventModel
     ),
     "zklend::market::Market::Withdrawal": (
         ZklendDataParser.parse_withdrawal_event,
-        "create_withdrawal_event",
+        "save_withdrawal_event",
         WithdrawalEventModel
     ),
     "CollateralEnabled": (
         ZklendDataParser.parse_collateral_enabled_disabled_event,
-        "collateral_enabled_disabled_event",
+        "save_collateral_enabled_disabled_event",
         CollateralEnabledDisabledEventModel
     ),
     "zklend::market::Market::CollateralEnabled": (
         ZklendDataParser.parse_collateral_enabled_disabled_event,
-        "collateral_enabled_disabled_event",
+        "save_collateral_enabled_disabled_event",
         CollateralEnabledDisabledEventModel
     ),
     "CollateralDisabled": (
         ZklendDataParser.parse_collateral_enabled_disabled_event,
-        "collateral_enabled_disabled_event",
+        "save_collateral_enabled_disabled_event",
         CollateralEnabledDisabledEventModel
     ),
     "zklend::market::Market::CollateralDisabled": (
         ZklendDataParser.parse_collateral_enabled_disabled_event,
-        "collateral_enabled_disabled_event",
+        "save_collateral_enabled_disabled_event",
         CollateralEnabledDisabledEventModel
     ),
 }
@@ -185,6 +185,83 @@ class ZklendTransformer:
                 "debt_face_amount": event_model.debt_face_amount,
                 "collateral_token": event_model.collateral_token,
                 "collateral_amount": event_model.collateral_amount
+            }
+        )
+
+    def save_borrowing_event(self, event_model: BorrowingEventModel) -> None:
+        """
+        Save a borrowing event to the database.
+        """
+        self.db_connector.create_borrowing_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "user": event_model.user,
+                "token": event_model.token,
+                "raw_amount": event_model.raw_amount,
+                "face_amount": event_model.face_amount
+            }
+        )
+
+    def save_deposit_event(self, event_model: DepositEventModel) -> None:
+        """
+        Save a deposit event to the database.
+        """
+        self.db_connector.create_deposit_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "user": event_model.user,
+                "token": event_model.token,
+                "face_amount": event_model.face_amount
+            }
+        )
+    
+    def save_withdrawal_event(self, event_model: WithdrawalEventModel) -> None:
+        """
+        Save a withdrawal event to the database.
+        """
+        self.db_connector.create_withdrawal_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "user": event_model.user,
+                "token": event_model.token,
+                "face_amount": event_model.face_amount
+            }
+        )
+    
+    def save_collateral_enabled_disabled_event(self, event_model: CollateralEnabledDisabledEventModel) -> None:
+        """
+        Save a collateral enabled/disabled event to the database.
+        """
+        self.db_connector.create_collateral_enabled_disabled_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "user": event_model.user,
+                "token": event_model.token
+            }
+        )
+    
+    def save_repayment_event(self, event_model: RepaymentEventModel) -> None:
+        """
+        Save a repayment event to the database.
+        """
+        self.db_connector.create_repayment_event(
+            protocol_id=self.PROTOCOL_TYPE,
+            event_name=event_model.event_name,
+            block_number=event_model.block_number,
+            event_data={
+                "repayer": event_model.repayer,
+                "beneficiary": event_model.beneficiary,
+                "token": event_model.token,
+                "raw_amount": event_model.raw_amount,
+                "face_amount": event_model.face_amount
             }
         )
 
