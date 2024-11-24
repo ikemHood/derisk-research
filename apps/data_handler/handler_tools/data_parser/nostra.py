@@ -5,6 +5,10 @@ from typing import Any
 from data_handler.handler_tools.data_parser.serializers import (
     DebtMintEventData,
     DebtBurnEventData,
+    InterestRateModelEventData,
+    DebtTransferEventData,
+    BearingCollateralMintEventData,
+    BearingCollateralBurnEventData,
     NonInterestBearingCollateralMintEventData,
     NonInterestBearingCollateralBurnEventData
 )
@@ -65,14 +69,67 @@ class NostraDataParser:
             face_amount=event_data[1]
         )
 
-    def parse_interest_bearing_collateral_mint_event(self):
-        pass
+    def parse_interest_bearing_collateral_mint_event(self, event_data: list[Any]) -> BearingCollateralMintEventData:
+        """
+        Parses the BearingCollateralMint event data into a human-readable format using the BearingCollateralMintEventData serializer.
+        
+        The event data is fetched from on-chain logs and is structured in the following way:
+        - event_data[0]: The user address (as a hexadecimal string).
+        - event_data[1]: Token amount
 
-    def parse_interest_bearing_collateral_burn_event(self):
-        pass
+        Args:
+            event_data (list[Any]): A list containing the raw event data, typically with 3 or more elements:
+                user address, amount of tokens
+        Returns:
+            BearingCollateralMintEventData: A Pydantic model with the parsed and validated event data in a human-readable format.
 
-    def parse_debt_transfer_event(self):
-        pass
+        """
+        return BearingCollateralMintEventData(
+            user=event_data[0],
+            amount=event_data[1],
+        )
+
+    def parse_interest_bearing_collateral_burn_event(self, event_data: list[Any]) -> BearingCollateralBurnEventData:
+        """
+        Parses the BearingCollateralMint event data into a human-readable format using the BearingCollateralMintEventData serializer.
+        
+        The event data is fetched from on-chain logs and is structured in the following way:
+        - event_data[0]: The user address (as a hexadecimal string).
+        - event_data[1]: Token amount
+
+        Args:
+            event_data (list[Any]): A list containing the raw event data, typically with 3 or more elements:
+                user address, amount of tokens
+        Returns:
+            BearingCollateralMintEventData: A Pydantic model with the parsed and validated event data in a human-readable format.
+
+        """
+        return BearingCollateralBurnEventData(
+            user=event_data[0],
+            amount=event_data[1],
+        )
+
+    def parse_debt_transfer_event(
+        cls, event_data: List[Any], from_address: str
+    ) -> DebtTransferEventData:
+        """
+        Parses the debt transfer event data into a human-readable format using the
+        DebtBurnEventData serializer.
+
+        Args:
+            event_data (List[Any]): A list containing the raw event data.
+                Expected order: [sender, recipient, value, _]
+            from_address (str): The address of the token contract
+
+        Returns:
+            DebtTransferEventData: A model with the parsed event data.
+        """
+        return DebtTransferEventData(
+            sender=event_data[0],
+            recipient=event_data[1],
+            amount=event_data[2],
+            token=from_address
+        )
 
     def parse_debt_mint_event(self, event_data: list[Any]) -> DebtMintEventData:
         """
