@@ -40,3 +40,4 @@ def test_get_protocol_helper():
     mock_state = MockState()
     mock_state.PROTOCOL_NAME = "Test Protocol"
     assert get_protocol(mock_state) == "Test Protocol"
+    
